@@ -11,6 +11,7 @@ module ActiveModel
           serializer.class_attribute :_cache_only    # @api private : when fragment caching, whitelists fetch_attributes. Cannot combine with except
           serializer.class_attribute :_cache_except  # @api private : when fragment caching, blacklists fetch_attributes. Cannot combine with only
           serializer.class_attribute :_cache_options # @api private : used by CachedSerializer, passed to _cache.fetch
+          serializer.class_attribute :_cache_disabled # @api private : allow disable cache in subclassed serializers
           #  _cache_options include:
           #    expires_in
           #    compress
@@ -110,6 +111,7 @@ module ActiveModel
           self._cache_key = options.delete(:key)
           self._cache_only = options.delete(:only)
           self._cache_except = options.delete(:except)
+          self._cache_disabled = options.delete(:disabled)
           self._cache_options = options.empty? ? nil : options
         end
 
@@ -148,11 +150,15 @@ module ActiveModel
         end
 
         def cache_enabled?
-          perform_caching? && cache_store && !_cache_only && !_cache_except
+          !_cache_disabled && perform_caching? && cache_store && !_cache_only && !_cache_except
+        end
+
+        def cache_disabled?
+          !cache_enabled?
         end
 
         def fragment_cache_enabled?
-          perform_caching? && cache_store &&
+          !_cache_disabled && perform_caching? && cache_store &&
             (_cache_only && !_cache_except || !_cache_only && _cache_except)
         end
 
@@ -218,7 +224,7 @@ module ActiveModel
       end
 
       def fetch(adapter_instance, cache_options = serializer_class._cache_options)
-        if serializer_class.cache_store
+        if serializer_class.cache_enabled?
           serializer_class.cache_store.fetch(cache_key(adapter_instance), cache_options) do
             yield
           end
