@@ -55,11 +55,27 @@ module ActiveModelSerializers
       # {http://jsonapi.org/format/#crud Requests are transactional, i.e. success or failure}
       # {http://jsonapi.org/format/#document-top-level data and errors MUST NOT coexist in the same document.}
       def serializable_hash(*)
-        document = if serializer.success?
-                     success_document
-                   else
-                     failure_document
-                   end
+        serializers = serializer.respond_to?(:each) ? serializer : [serializer]
+
+        cache_enabled = serializers.all? { |serializer| serializer.class.cache_enabled? }
+        if cache_enabled && serializers.count > 0
+          cache_key =
+            ActiveModel::Serializer.object_cache_keys(serializers, self, @include_directive)
+          cache_key.unshift('json_api_document')
+
+          serializers.first.class.cache_store.fetch(cache_key) { build_serializable_hash }
+        else
+          build_serializable_hash
+        end
+      end
+
+      def build_serializable_hash
+        document =
+          if serializer.success?
+            success_document
+          else
+            failure_document
+          end
         self.class.transform_key_casing!(document, instance_options)
       end
 
