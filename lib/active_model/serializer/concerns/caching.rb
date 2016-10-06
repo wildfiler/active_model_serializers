@@ -48,7 +48,13 @@ module ActiveModel
 
         def _cache_digest
           return @_cache_digest if defined?(@_cache_digest)
-          @_cache_digest = digest_caller_file(_cache_digest_file_path)
+          file_digest = digest_caller_file(_cache_digest_file_path)
+          @_cache_digest =
+            if superclass.respond_to?(:_cache_digest) && superclass._cache_digest_file_path.present?
+              Digest::MD5.hexdigest([file_digest, superclass._cache_digest].join('/'))
+            else
+              file_digest
+            end
         end
 
         # Hashes contents of file for +_cache_digest+

@@ -1,6 +1,7 @@
 require 'test_helper'
 require 'tmpdir'
 require 'tempfile'
+require 'fixtures/subclassed_serializer'
 
 module ActiveModelSerializers
   class CacheTest < ActiveSupport::TestCase
@@ -320,6 +321,14 @@ module ActiveModelSerializers
 
     def test_cache_digest_definition
       assert_equal(::Model::FILE_DIGEST, @post_serializer.class._cache_digest)
+      combined_cache_digest = Digest::MD5.hexdigest(
+        [
+          ::SubPostSerializer::FILE_DIGEST,
+          ::Model::FILE_DIGEST
+        ].join('/')
+      )
+      assert_not_equal(::SubPostSerializer::FILE_DIGEST, ::SubPostSerializer._cache_digest)
+      assert_equal(combined_cache_digest, ::SubPostSerializer._cache_digest)
     end
 
     def test_object_cache_keys
